@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
     borderColor: '#D9252B',
     marginBottom: 14,
   },
-  shiftName: { fontSize: 18, fontWeight: 'bold', color: '#D9252B' },
+  shiftName: { fontSize: 18, fontWeight: 'bold', color: '#D9252B', paddingTop: 1},
   date: { fontSize: 14, color: '#444', marginVertical: 6 },
   workersTitle: { fontWeight: 'bold', color: '#000', marginTop: 8 },
   workerName: { marginLeft: 8, color: '#333', fontSize: 14 },
