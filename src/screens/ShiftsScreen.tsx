@@ -7,7 +7,7 @@ import {
   SafeAreaView
 } from 'react-native';
 import axios from 'axios';
-import { Shift, Worker } from '../../types';
+import { Shift } from '../../types'; // Make sure Shift does NOT include `workers`
 
 export default function ShiftsScreen() {
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -36,14 +36,10 @@ export default function ShiftsScreen() {
         renderItem={({ item }) => (
           <View style={styles.card}>
             <Text style={styles.name}>{item.name}</Text>
+            <Text style={styles.info}>Type: {item.shift_type}</Text>
             <Text style={styles.info}>Start: {item.start_datetime}</Text>
             <Text style={styles.info}>End: {item.end_datetime}</Text>
-            <Text style={styles.info}>Workers:</Text>
-            {item.workers?.map((worker: Worker) => (
-              <Text key={worker.id} style={styles.worker}>
-                • {worker.first_name} {worker.last_name}
-              </Text>
-            ))}
+            <Text style={styles.info}>Description: {item.description}</Text>
           </View>
         )}
         ListEmptyComponent={
@@ -72,8 +68,7 @@ const styles = StyleSheet.create({
     marginBottom: 12
   },
   name: { fontSize: 18, fontWeight: 'bold', color: '#D9252B' },
-  info: { fontSize: 14, color: '#333' },
-  worker: { fontSize: 14, color: '#555', marginLeft: 8 },
+  info: { fontSize: 14, color: '#333', marginTop: 4 },
   noResult: {
     fontSize: 16,
     textAlign: 'center',

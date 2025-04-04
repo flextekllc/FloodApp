@@ -9,8 +9,14 @@ export interface Worker {
   export interface Shift {
     id: number;
     name: string;
+    shift_type: string;
     start_datetime: string;
     end_datetime: string;
-    workers?: Worker[];
+    description: string;
+    flood_id: number;
+    created_at: string;
+    updated_at: string;
+    // workers?: Worker[]; // remove or make optional if still used
   }
+  
   

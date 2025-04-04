@@ -4,22 +4,25 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from './src/screens/HomeScreen';
 import WorkersScreen from './src/screens/WorkersScreen';
 import ShiftsScreen from './src/screens/ShiftsScreen';
-import FacebookScreen from './src/screens/FacebookScreen';
+//import FacebookScreen from './src/screens/FacebookScreen';
 import ShiftListScreen from './src/screens/ShiftListScreen';
 import ShiftWorkersScreen from './src/screens/ShiftWorkersScreen';
 import ShiftCalendarScreen from './src/screens/ShiftCalendarScreen';
+import WebViewTabsScreen from './src/screens/WebViewTabsScreen';
+
 
 export type RootStackParamList = {
   Home: undefined;
   Workers: undefined;
   Shifts: undefined;
-  Facebook: undefined; // add this
+  //Facebook: undefined; // add this
   ShiftListScreen: undefined; // add this
   ShiftWorkersScreen: {
     shiftId: number;
     shiftName: string;
   }; 
   ShiftCalendar: undefined; // 👈 Add this// add this
+  SocialWebView: undefined; // Add this
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -31,10 +34,12 @@ export default function App() {
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Workers" component={WorkersScreen} />
         <Stack.Screen name="Shifts" component={ShiftsScreen} />
-        <Stack.Screen name="Facebook" component={FacebookScreen} />
+        {/* <Stack.Screen name="Facebook" component={FacebookScreen} /> */}
         <Stack.Screen name="ShiftListScreen" component={ShiftListScreen} options={{ title: 'Shifts' }}/>
         <Stack.Screen name="ShiftWorkersScreen" component={ShiftWorkersScreen} options={{ title: 'Assigned Workers' }}/>
         <Stack.Screen name="ShiftCalendar" component={ShiftCalendarScreen} options={{ title: 'Shift Calendar' }}/>
+        <Stack.Screen name="SocialWebView" component={WebViewTabsScreen} />
+
 
       </Stack.Navigator>
     </NavigationContainer>
