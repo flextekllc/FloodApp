@@ -7,13 +7,20 @@ import {
   SafeAreaView,
   ActivityIndicator,
   TextInput,
+  TouchableOpacity,
 } from 'react-native';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 
+// Types
 type Worker = {
   id: number;
   first_name: string;
   last_name: string;
+  phone_number?: string;
+  status?: string;
+  shift_worker_id?: number;
+  worker_id?: number;
 };
 
 type Shift = {
@@ -25,6 +32,7 @@ type Shift = {
 };
 
 export default function ShiftListScreen() {
+  const { worker: loggedInWorker } = useAuth();
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [filteredShifts, setFilteredShifts] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,9 +40,9 @@ export default function ShiftListScreen() {
   const [matchCount, setMatchCount] = useState(0);
 
   useEffect(() => {
-    axios
-      .get('https://esr-backend-dev.flextekllc.com/api/shifts')
-      .then(async (res) => {
+    const fetchData = async () => {
+      try {
+        const res = await axios.get('https://esr-backend-dev.flextekllc.com/api/shifts');
         const shifts = res.data;
 
         const shiftsWithWorkers = await Promise.all(
@@ -43,7 +51,18 @@ export default function ShiftListScreen() {
               const response = await axios.get(
                 `https://esr-backend-dev.flextekllc.com/api/shifts/${shift.id}/workers`
               );
-              return { ...shift, workers: response.data };
+              const enrichedWorkers = await Promise.all(
+                response.data.map(async (worker: Worker) => {
+                  try {
+                    const swRes = await axios.get(`https://esr-backend-dev.flextekllc.com/api/shift-workers/${worker.worker_id}/${shift.id}`);
+                    return { ...worker, status: swRes.data.status, shift_worker_id: swRes.data.id };
+                  } catch (err) {
+                    console.error('Failed to fetch status for worker:', worker.id, err);
+                    return worker;
+                  }
+                })
+              );
+              return { ...shift, workers: enrichedWorkers };
             } catch (error) {
               console.error(`Error fetching workers for shift ${shift.id}:`, error);
               return { ...shift, workers: [] };
@@ -54,11 +73,13 @@ export default function ShiftListScreen() {
         setShifts(shiftsWithWorkers);
         setFilteredShifts(shiftsWithWorkers);
         setLoading(false);
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error('Error loading shifts:', err);
         setLoading(false);
-      });
+      }
+    };
+
+    fetchData();
   }, []);
 
   useEffect(() => {
@@ -77,6 +98,34 @@ export default function ShiftListScreen() {
     }
   }, [searchName, shifts]);
 
+  const updateStatus = async (shiftWorkerId: number, status: string) => {
+    try {
+      await axios.put(`https://esr-backend-dev.flextekllc.com/api/shift-workers/${shiftWorkerId}`, { status });
+      const updated = filteredShifts.map(shift => {
+        const updatedWorkers = shift.workers?.map(worker =>
+          worker.shift_worker_id === shiftWorkerId ? { ...worker, status } : worker
+        );
+        return { ...shift, workers: updatedWorkers };
+      });
+      setFilteredShifts(updated);
+    } catch (err) {
+      console.error('Failed to update status:', err);
+    }
+  };
+
+  const renderStatusBadge = (status?: string) => {
+    const badgeStyles = [styles.statusBadge];
+    if (status === 'Accepted') badgeStyles.push(styles.acceptedBadge);
+    else if (status === 'Declined') badgeStyles.push(styles.declinedBadge);
+    else badgeStyles.push(styles.scheduledBadge);
+
+    return (
+      <View style={badgeStyles}>
+        <Text style={styles.badgeText}>{status || 'Scheduled'}</Text>
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <Text style={styles.title}>Shifts</Text>
@@ -89,9 +138,7 @@ export default function ShiftListScreen() {
       />
 
       {searchName.length > 0 && (
-        <Text style={styles.matchCount}>
-          Total Shifts Found: {matchCount}
-        </Text>
+        <Text style={styles.matchCount}>Total Shifts Found: {matchCount}</Text>
       )}
 
       {loading ? (
@@ -108,11 +155,38 @@ export default function ShiftListScreen() {
               </Text>
               <Text style={styles.workersTitle}>Workers:</Text>
               {item.workers && item.workers.length > 0 ? (
-                item.workers.map((worker) => (
-                  <Text key={worker.id} style={styles.workerName}>
-                    - {worker.first_name} {worker.last_name}
-                  </Text>
-                ))
+                item.workers.map((worker) => {
+                  const isLoggedInUser = worker.worker_id === loggedInWorker?.id;
+                  const hasResponded = worker.status === 'Accepted' || worker.status === 'Declined';
+
+                  return (
+                    <View key={worker.id} style={styles.workerItem}>
+                      <Text
+                        style={[styles.workerName, isLoggedInUser && styles.loggedInWorkerName]}
+                      >
+                        👤 {worker.first_name} {worker.last_name}
+                      </Text>
+                      {isLoggedInUser && !hasResponded ? (
+                        <View style={styles.actionButtons}>
+                          <TouchableOpacity
+                            style={styles.acceptBtn}
+                            onPress={() => updateStatus(worker.shift_worker_id!, 'Accepted')}
+                          >
+                            <Text style={styles.actionText}>✅ Accept</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.declineBtn}
+                            onPress={() => updateStatus(worker.shift_worker_id!, 'Declined')}
+                          >
+                            <Text style={styles.actionText}>❌ Decline</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        renderStatusBadge(worker.status)
+                      )}
+                    </View>
+                  );
+                })
               ) : (
                 <Text style={styles.noWorkers}>None assigned</Text>
               )}
@@ -154,9 +228,51 @@ const styles = StyleSheet.create({
     borderColor: '#D9252B',
     marginBottom: 14,
   },
-  shiftName: { fontSize: 18, fontWeight: 'bold', color: '#D9252B', paddingTop: 1},
+  shiftName: { fontSize: 18, fontWeight: 'bold', color: '#D9252B', paddingTop: 1 },
   date: { fontSize: 14, color: '#444', marginVertical: 6 },
   workersTitle: { fontWeight: 'bold', color: '#000', marginTop: 8 },
-  workerName: { marginLeft: 8, color: '#333', fontSize: 14 },
+  workerItem: { marginBottom: 20 },
+  workerName: { marginLeft: 8, color: '#333', fontSize: 15, fontWeight: '600' },
+  loggedInWorkerName: { color: 'red' },
   noWorkers: { marginLeft: 8, fontStyle: 'italic', color: '#999' },
+  actionButtons: {
+    flexDirection: 'row',
+    marginTop: 10,
+    marginLeft: 8,
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  acceptBtn: {
+    backgroundColor: 'green',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  declineBtn: {
+    backgroundColor: 'red',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  actionText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  statusBadge: {
+    marginLeft: 8,
+    marginTop: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  acceptedBadge: { backgroundColor: 'green' },
+  declinedBadge: { backgroundColor: 'red' },
+  scheduledBadge: { backgroundColor: '#888' },
 });

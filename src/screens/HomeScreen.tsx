@@ -11,13 +11,21 @@ import {
   Pressable,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
   const [modalVisible, setModalVisible] = useState(false);
 
-  const managerPhone = '+14794276215'; // Replace with real number
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem('userPhoneNumber');
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Login' }],
+    });
+  };
+
+  const managerPhone = '+14794276215';
 
   const handleCall = () => {
     Linking.openURL(`tel:${managerPhone}`);
@@ -43,7 +51,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('ShiftListScreen')}>
-          <Text style={styles.buttonText}>Shceduled Workers</Text>
+          <Text style={styles.buttonText}>Scheduled Workers</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('ShiftCalendar')}>
@@ -56,6 +64,11 @@ export default function HomeScreen() {
 
         <TouchableOpacity style={[styles.button, styles.helpButton]} onPress={() => setModalVisible(true)}>
           <Text style={styles.buttonText}>Support</Text>
+        </TouchableOpacity>
+
+        {/* Logout Button */}
+        <TouchableOpacity style={[styles.button, styles.logoutButton]} onPress={handleLogout}>
+          <Text style={styles.buttonText}>Logout</Text>
         </TouchableOpacity>
 
         {/* Help Modal */}
@@ -111,7 +124,13 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   helpButton: {
-    backgroundColor: '#000', // Make Help button stand out
+    backgroundColor: '#000',
+  },
+  logoutButton: {
+    backgroundColor: '#D9252B',
+    borderColor: '#000',
+    borderWidth: 1,
+    marginTop: 10,
   },
   buttonText: {
     color: '#fff',
