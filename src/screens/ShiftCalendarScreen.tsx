@@ -1,7 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type Shift = {
   id: number;
@@ -27,9 +36,11 @@ export default function ShiftCalendarScreen() {
   const [loading, setLoading] = useState(true);
   const [workerMap, setWorkerMap] = useState<Record<number, Worker[]>>({});
   const [showWorkersMap, setShowWorkersMap] = useState<Record<number, boolean>>({});
+  const [userPhone, setUserPhone] = useState<string>('');
 
   useEffect(() => {
-    axios.get('https://esr-backend-dev.flextekllc.com/api/shifts')
+    axios
+      .get('https://esr-backend-dev.flextekllc.com/api/shifts')
       .then((res) => {
         setShifts(res.data);
         setLoading(false);
@@ -38,6 +49,12 @@ export default function ShiftCalendarScreen() {
         console.error('Error loading shifts:', err);
         setLoading(false);
       });
+
+    const loadPhone = async () => {
+      const stored = await AsyncStorage.getItem('userPhoneNumber');
+      if (stored) setUserPhone(stored);
+    };
+    loadPhone();
   }, []);
 
   const fetchWorkers = async (shiftId: number) => {
@@ -47,7 +64,9 @@ export default function ShiftCalendarScreen() {
     }
 
     try {
-      const res = await axios.get(`https://esr-backend-dev.flextekllc.com/api/shifts/${shiftId}/workers`);
+      const res = await axios.get(
+        `https://esr-backend-dev.flextekllc.com/api/shifts/${shiftId}/workers`
+      );
       setWorkerMap((prev) => ({ ...prev, [shiftId]: res.data }));
       setShowWorkersMap((prev) => ({ ...prev, [shiftId]: true }));
     } catch (err) {
@@ -88,14 +107,28 @@ export default function ShiftCalendarScreen() {
 
         {show && workers.length > 0 && (
           <View style={styles.workerList}>
-            {workers.map((w) => (
-              <View key={w.id} style={styles.workerCard}>
-                <Text style={styles.workerName}>{w.first_name} {w.last_name}</Text>
-                <Text style={styles.workerDetails}>Position: {w.position}</Text>
-                <Text style={styles.workerDetails}>City: {w.city}</Text>
-                <Text style={styles.workerDetails}>Status: {w.status}</Text>
-              </View>
-            ))}
+            {workers.map((w) => {
+              const isCurrentUser = w.phone_number.replace(/\D/g, '') === userPhone.replace(/\D/g, '');
+              return (
+                <View key={w.id} style={styles.workerCard}>
+                  <Text style={styles.workerName}>{w.first_name} {w.last_name}</Text>
+                  <Text style={styles.workerDetails}>Position: {w.position}</Text>
+                  <Text style={styles.workerDetails}>City: {w.city}</Text>
+                  <Text style={styles.workerDetails}>Status: {w.status}</Text>
+
+                  {isCurrentUser && (
+                    <View style={styles.actionButtons}>
+                      <TouchableOpacity style={styles.acceptBtn}>
+                        <Text style={styles.actionText}>Accept</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.declineBtn}>
+                        <Text style={styles.actionText}>Decline</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
           </View>
         )}
       </View>
@@ -163,4 +196,25 @@ const styles = StyleSheet.create({
   },
   workerName: { fontWeight: 'bold', fontSize: 16, color: '#000' },
   workerDetails: { fontSize: 14, color: '#333' },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  acceptBtn: {
+    backgroundColor: 'green',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  declineBtn: {
+    backgroundColor: 'red',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  actionText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
 });
